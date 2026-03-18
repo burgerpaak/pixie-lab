@@ -1784,11 +1784,15 @@ html, body {
 
     const contentW = maxX - minX;
     const contentH = maxY - minY;
-    const contentCx = minX + contentW / 2;
-    const contentCy = minY + contentH / 2;
-
-    // Center viewBox around content center, using the larger dimension
-    const dim = Math.max(contentW, contentH) + 80; // 40px padding each side
+    // Use face center (120,120) as anchor to prevent off-center accessories from shifting
+    const contentCx = 120;
+    const contentCy = 120;
+    const extentL = contentCx - minX;
+    const extentR = maxX - contentCx;
+    const extentT = contentCy - minY;
+    const extentB = maxY - contentCy;
+    const maxExtent = Math.max(extentL, extentR, extentT, extentB);
+    const dim = maxExtent * 2 + 80;
     const vbX = contentCx - dim / 2;
     const vbY = contentCy - dim / 2;
     clone.setAttribute('viewBox', `${vbX} ${vbY} ${dim} ${dim}`);

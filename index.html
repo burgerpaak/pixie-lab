@@ -354,6 +354,109 @@ html, body {
 
 .btn-create:hover { background: #f0f0f0; }
 
+/* ── Save Modal ── */
+.save-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.save-modal-overlay.hidden { display: none; }
+.save-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.save-modal-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+}
+.save-modal-close {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.save-modal-close:hover { color: var(--text); }
+.save-modal-preview {
+  border-radius: 12px;
+  overflow: hidden;
+}
+.save-modal-preview canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+.save-modal-options {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.texture-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.texture-checkbox { display: none; }
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--text2);
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s, background 0.2s;
+}
+.texture-checkbox:checked + .toggle-switch {
+  background: var(--text);
+}
+.texture-checkbox:checked + .toggle-switch::after {
+  transform: translateX(16px);
+  background: var(--bg);
+}
+.save-modal-download {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.save-modal-download:hover { opacity: 0.9; }
+
 /* ── Watermark ── */
 .watermark {
   position: absolute;
@@ -584,6 +687,23 @@ html, body {
   <button id="redoBtn" title="다시 실행"><svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:18px;height:18px;fill:var(--text)"><rect x="0" y="60" width="10" height="10"/><rect x="20" y="70" width="10" height="10"/><rect x="10" y="70" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/><rect x="40" y="70" width="10" height="10"/><rect x="0" y="50" width="10" height="10"/><rect x="0" y="40" width="10" height="10"/><rect x="0" y="30" width="10" height="10"/><rect x="10" y="30" width="10" height="10"/><rect x="20" y="30" width="10" height="10"/><rect x="30" y="30" width="10" height="10"/><rect x="40" y="30" width="10" height="10"/><rect x="40" y="50" width="10" height="10"/><rect x="50" y="40" width="10" height="10"/><rect x="50" y="30" width="10" height="10"/><rect x="60" y="30" width="10" height="10"/><rect x="50" y="20" width="10" height="10"/><rect x="40" y="10" width="10" height="10"/></svg></button>
 </div>
 
+<!-- Save Modal -->
+<div class="save-modal-overlay hidden" id="saveModal">
+  <div class="save-modal">
+    <div class="save-modal-header">
+      <span>Save</span>
+      <button class="save-modal-close" id="saveModalClose">&times;</button>
+    </div>
+    <div class="save-modal-preview">
+      <canvas id="savePreviewCanvas" width="280" height="280"></canvas>
+    </div>
+    <div class="save-modal-options">
+      <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="grainCheckbox"><span class="toggle-switch"></span><span class="texture-label">Texture</span></label>
+    </div>
+    <button class="save-modal-download" id="saveModalDownload">Download</button>
+  </div>
+</div>
+
 <script>
 (() => {
   // ── Pixel Art Parts Data ──
@@ -648,7 +768,7 @@ html, body {
     skinHue: 240,
     hairHue: 240,
     accHue0: 240, accHue1: 240, accHue2: 240, accHue3: 240,
-    bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240,
+    bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240, bgTexture: false,
   };
 
   let activeCategory = null;
@@ -1112,7 +1232,7 @@ html, body {
       // Solid color palette
       html += renderColorPaletteHtml('background');
 
-      // Gradient presets below
+      // Preset colors below
       html += '<div class="options-grid">';
       BG_PRESETS.forEach((grad, i) => {
         const isActive = state.bgType === 'preset' && state.bgGradient === i;
@@ -1283,7 +1403,7 @@ html, body {
       accColor0: 2, accColor1: 2, accColor2: 2, accColor3: 2,
       skinHue: 240, hairHue: 240,
       accHue0: 240, accHue1: 240, accHue2: 240, accHue3: 240,
-      bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240,
+      bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240, bgTexture: false,
     };
     activeCategory = null;
     overlayVisible = true;
@@ -1501,6 +1621,118 @@ html, body {
   }
 
   // ── Download ──
+  function openSaveModal() {
+    document.getElementById('saveModal').classList.remove('hidden');
+    document.getElementById('grainCheckbox').checked = false;
+    state.bgTexture = false;
+    updateSavePreview();
+  }
+
+  function closeSaveModal() {
+    document.getElementById('saveModal').classList.add('hidden');
+  }
+
+  function updateSavePreview() {
+    state.bgTexture = document.getElementById('grainCheckbox').checked;
+    renderToCanvas(document.getElementById('savePreviewCanvas'), 280);
+  }
+
+  function applyGrain(ctx, w, h) {
+    // Displacement on alpha-aware pixels only (skip transparent = background)
+    const src = ctx.getImageData(0, 0, w, h);
+    const s = src.data;
+    const dst = ctx.createImageData(w, h);
+    const d = dst.data;
+    d.set(s);
+
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        if (s[i+3] === 0) continue; // skip transparent
+        if (Math.random() > 0.5) continue; // 50% chance to skip
+        const dx = Math.round((Math.random() - 0.5) * 2);
+        const dy = Math.round((Math.random() - 0.5) * 2);
+        const sx = Math.min(w - 1, Math.max(0, x + dx));
+        const sy = Math.min(h - 1, Math.max(0, y + dy));
+        const si = (sy * w + sx) * 4;
+        d[i] = s[si];
+        d[i+1] = s[si+1];
+        d[i+2] = s[si+2];
+        d[i+3] = s[si+3];
+      }
+    }
+    ctx.putImageData(dst, 0, 0);
+  }
+
+  function renderToCanvas(canvas, size) {
+    const svgEl = document.getElementById('avatarSvg');
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    const rects = clone.querySelectorAll('rect');
+    let minX = 240, minY = 240, maxX = 0, maxY = 0;
+    rects.forEach(r => {
+      const rx = parseFloat(r.getAttribute('x'));
+      const ry = parseFloat(r.getAttribute('y'));
+      const rw = parseFloat(r.getAttribute('width')) || 10;
+      const rh = parseFloat(r.getAttribute('height')) || 10;
+      if (rx < minX) minX = rx;
+      if (ry < minY) minY = ry;
+      if (rx + rw > maxX) maxX = rx + rw;
+      if (ry + rh > maxY) maxY = ry + rh;
+    });
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const contentCx = minX + contentW / 2;
+    const contentCy = minY + contentH / 2;
+    const dim = Math.max(contentW, contentH) + 80;
+    const vbX = contentCx - dim / 2;
+    const vbY = contentCy - dim / 2;
+    clone.setAttribute('viewBox', `${vbX} ${vbY} ${dim} ${dim}`);
+    clone.setAttribute('width', `${dim}`);
+    clone.setAttribute('height', `${dim}`);
+
+    const svgData = new XMLSerializer().serializeToString(clone);
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    if (state.bgType === 'preset') {
+      ctx.fillStyle = BG_PRESETS[state.bgGradient] || '#f5f5f5';
+    } else {
+      const bgColors = getColorPalette('background');
+      ctx.fillStyle = bgColors[state.bgColor] || '#f5f5f5';
+    }
+    ctx.fillRect(0, 0, size, size);
+
+    const img = new Image();
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      if (state.bgTexture) {
+        // Draw avatar on transparent temp canvas, apply grain, then composite
+        const tmp = document.createElement('canvas');
+        tmp.width = size; tmp.height = size;
+        const tctx = tmp.getContext('2d');
+        tctx.imageSmoothingEnabled = false;
+        const s = size * 0.93;
+        const x = (size - s) / 2;
+        const y = (size - s) / 2;
+        tctx.drawImage(img, x, y, s, s);
+        applyGrain(tctx, size, size);
+        ctx.drawImage(tmp, 0, 0);
+      } else {
+        ctx.imageSmoothingEnabled = false;
+        const s = size * 0.93;
+        const x = (size - s) / 2;
+        const y = (size - s) / 2;
+        ctx.drawImage(img, x, y, s, s);
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
   function downloadAvatar() {
     const svgEl = document.getElementById('avatarSvg');
     const clone = svgEl.cloneNode(true);
@@ -1553,17 +1785,29 @@ html, body {
     const url = URL.createObjectURL(blob);
 
     img.onload = () => {
-      ctx.imageSmoothingEnabled = false;
       const size = 520;
       const x = (560 - size) / 2;
       const y = (560 - size) / 2;
-      ctx.drawImage(img, x, y, size, size);
+
+      if (state.bgTexture) {
+        const tmp = document.createElement('canvas');
+        tmp.width = 560; tmp.height = 560;
+        const tctx = tmp.getContext('2d');
+        tctx.imageSmoothingEnabled = false;
+        tctx.drawImage(img, x, y, size, size);
+        applyGrain(tctx, 560, 560);
+        ctx.drawImage(tmp, 0, 0);
+      } else {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, x, y, size, size);
+      }
       URL.revokeObjectURL(url);
 
       const link = document.createElement('a');
       link.download = 'me.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+      closeSaveModal();
     };
     img.src = url;
   }
@@ -1596,7 +1840,7 @@ html, body {
         skinHue: 240,
         hairHue: 240,
         accHue0: 240, accHue1: 240, accHue2: 240, accHue3: 240,
-        bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240,
+        bgType: 'solid', bgColor: 0, bgGradient: 0, bgHue: 240, bgTexture: false,
       };
       hideOverlay();
       activeCategory = 'face';
@@ -1615,7 +1859,11 @@ html, body {
     document.getElementById('mobileLogo').addEventListener('click', resetToHome);
 
     // Download
-    document.getElementById('downloadBtn').addEventListener('click', downloadAvatar);
+    document.getElementById('downloadBtn').addEventListener('click', openSaveModal);
+    document.getElementById('saveModalClose').addEventListener('click', closeSaveModal);
+    document.getElementById('saveModal').addEventListener('click', (e) => { if (e.target.id === 'saveModal') closeSaveModal(); });
+    document.getElementById('grainCheckbox').addEventListener('change', updateSavePreview);
+    document.getElementById('saveModalDownload').addEventListener('click', downloadAvatar);
 
     // Undo/Redo
     document.getElementById('undoBtn').addEventListener('click', undo);

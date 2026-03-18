@@ -977,9 +977,9 @@ html, body {
       svgContent += rect(x, y, skinColor);
     }
 
-    // Layer 1.5: 피부 accessories (above skin fill, below face outline)
-    const skinAccGi = ACC_GROUPS.findIndex(g => g.label === 'Skin');
-    if (skinAccGi >= 0) {
+    // Layer 1.5: Mood accessories (rendered later at Layer 4.5)
+    const skinAccGi = ACC_GROUPS.findIndex(g => g.label === 'Mood');
+    if (false && skinAccGi >= 0) {
       const accIdx = state.accessory[skinAccGi];
       if (accIdx >= 0) {
         const accPalette = getColorPalette('accessory', skinAccGi);
@@ -1035,6 +1035,29 @@ html, body {
       for (const p of mouthPoints) {
         const color = p[2] || '#000';
         svgContent += rect(p[0], p[1], color);
+      }
+    }
+
+    // Layer 4.5: Mood accessories (above mouth, below hair)
+    if (skinAccGi >= 0) {
+      const accIdx = state.accessory[skinAccGi];
+      if (accIdx >= 0) {
+        const accPalette = getColorPalette('accessory', skinAccGi);
+        const accColor = accPalette[state['accColor' + skinAccGi]];
+        const beardStyleIdx = BEARD_ACC_MAP[accIdx];
+        const accPoints = (beardStyleIdx !== undefined && PARTS.beard[beardStyleIdx])
+          ? PARTS.beard[beardStyleIdx][state.face] || PARTS.beard[beardStyleIdx][0]
+          : PARTS.accessory[accIdx];
+        if (accPoints) {
+          for (const p of accPoints) {
+            const origColor = p[2] || '#000';
+            let fill;
+            if (origColor === 'blue') { fill = accColor; }
+            else if (origColor === '#fff') { fill = '#fff'; }
+            else { fill = origColor; }
+            svgContent += rect(p[0], p[1], fill);
+          }
+        }
       }
     }
 

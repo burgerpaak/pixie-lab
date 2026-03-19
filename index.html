@@ -707,7 +707,7 @@ html, body {
     <div class="save-modal-options">
       <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="grainCheckbox"><span class="toggle-switch"></span><span class="texture-label">Texture</span></label>
     </div>
-    <button class="save-modal-download" id="saveModalDownload">Download</button>
+    <button class="save-modal-download" id="saveModalDownload">Share</button>
   </div>
 </div>
 
@@ -1835,11 +1835,31 @@ html, body {
       }
       URL.revokeObjectURL(url);
 
-      const link = document.createElement('a');
-      link.download = 'me.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      closeSaveModal();
+      canvas.toBlob(async (blob) => {
+        if (navigator.share && navigator.canShare) {
+          const file = new File([blob], 'me.png', { type: 'image/png' });
+          try {
+            await navigator.share({ files: [file] });
+          } catch (e) {
+            if (e.name !== 'AbortError') {
+              // Fallback to download
+              const link = document.createElement('a');
+              link.download = 'me.png';
+              link.href = URL.createObjectURL(blob);
+              link.click();
+              URL.revokeObjectURL(link.href);
+            }
+          }
+        } else {
+          // Fallback to download for unsupported browsers
+          const link = document.createElement('a');
+          link.download = 'me.png';
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
+        closeSaveModal();
+      }, 'image/png');
     };
     img.src = url;
   }

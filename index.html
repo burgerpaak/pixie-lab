@@ -607,17 +607,20 @@ html, body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    padding-bottom: 100px;
   }
 
   .subsidebar.open ~ .preview {
     align-items: flex-start;
     padding-top: 40px;
-    padding-bottom: 0;
+  }
+
+  .subsidebar.open ~ .preview .avatar-card {
+    transform: none;
   }
 
   .avatar-card {
     width: 260px;
+    transform: translateY(-60px);
   }
 
   .undo-redo {

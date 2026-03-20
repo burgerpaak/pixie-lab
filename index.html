@@ -1296,6 +1296,11 @@ html, body {
     sub.classList.add('open');
     renderHeaderPalette(cat);
     renderOptions(cat);
+    // Scroll active option into center view
+    setTimeout(() => {
+      const activeOpt = sub.querySelector('.option-box.active');
+      if (activeOpt) activeOpt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
   }
 
   function getStateKey(catId) {

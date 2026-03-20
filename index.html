@@ -866,6 +866,7 @@ html, body {
   };
 
   // ── State ──
+  let hasRandomized = false;
   let state = {
     face: 0,
     skinColor: 0,
@@ -1266,6 +1267,15 @@ html, body {
 
     menu.querySelectorAll('.sidebar-item').forEach(el => {
       el.addEventListener('click', () => {
+        const sub = document.getElementById('subsidebar');
+        if (activeCategory === el.dataset.cat && sub.classList.contains('open')) {
+          sub.classList.remove('open');
+          activeCategory = null;
+          overlayVisible = true;
+          document.getElementById('overlayButtons').classList.remove('hidden');
+          renderSidebar();
+          return;
+        }
         activeCategory = el.dataset.cat;
         hideOverlay();
         renderSidebar();
@@ -1296,11 +1306,18 @@ html, body {
     sub.classList.add('open');
     renderHeaderPalette(cat);
     renderOptions(cat);
-    // Scroll active option into center view
-    setTimeout(() => {
-      const activeOpt = sub.querySelector('.option-box.active');
-      if (activeOpt) activeOpt.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
+    // Scroll active option into center of subsidebar
+    sub.scrollTop = 0;
+    if (hasRandomized) {
+      setTimeout(() => {
+        const activeOpt = sub.querySelector('.option-box.active');
+        if (activeOpt) {
+          const scrollY = window.scrollY;
+          activeOpt.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          window.scrollTo(0, scrollY);
+        }
+      }, 100);
+    }
   }
 
   function getStateKey(catId) {
@@ -1668,6 +1685,7 @@ html, body {
   }
 
   function randomizeAll() {
+    hasRandomized = true;
     state.face = Math.floor(Math.random() * PARTS.face.length);
     state.eyes = Math.floor(Math.random() * PARTS.eyes.length);
     // mouth-9(rainbow tongue) 확률 2.5%, 나머지 균등
@@ -1793,10 +1811,14 @@ html, body {
     renderAvatar();
     updateUndoRedo();
     // Scroll selected option into center of subsidebar
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       const active = document.querySelector('.option-box.active');
-      if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+      if (active) {
+        const scrollY = window.scrollY;
+        active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        window.scrollTo(0, scrollY);
+      }
+    }, 100);
   }
 
   // ── History (Undo/Redo) ──
@@ -2154,8 +2176,10 @@ html, body {
     document.getElementById('undoRedo').addEventListener('dragstart', e => e.preventDefault());
 
     // Close subsidebar on outside touch (mobile)
-    document.querySelector('.preview').addEventListener('click', () => {
+    document.querySelector('.preview').addEventListener('click', (e) => {
       if (window.innerWidth <= 820) {
+        // Don't close if clicking overlay buttons (random/create)
+        if (e.target.closest('.overlay-buttons')) return;
         document.getElementById('subsidebar').classList.remove('open');
       }
     });

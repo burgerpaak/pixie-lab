@@ -678,17 +678,36 @@ html, body {
     right: 0;
     z-index: 10;
     background: var(--surface);
-    border-radius: 0 0 20px 20px;
+    border-radius: 0;
   }
 
   .subsidebar.open {
-    max-height: 50vh;
+    max-height: none;
     width: 100% !important;
-    overflow-y: auto;
+    overflow: hidden;
+  }
+
+  .options-grid {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    padding-bottom: 8px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    scroll-snap-type: x proximity;
   }
-  .subsidebar.open::-webkit-scrollbar { display: none; }
+  .options-grid::-webkit-scrollbar { display: none; }
+
+  .option-box {
+    flex: 0 0 90px;
+    min-width: 90px;
+    height: 90px;
+    aspect-ratio: auto;
+    scroll-snap-align: center;
+  }
 
   .preview {
     flex: 1;
@@ -697,7 +716,7 @@ html, body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    padding-bottom: 140px;
+    padding-bottom: 107px;
   }
 
   .avatar-card {
@@ -1306,9 +1325,21 @@ html, body {
     sub.classList.add('open');
     renderHeaderPalette(cat);
     renderOptions(cat);
-    // Scroll active option into center of subsidebar
-    sub.scrollTop = 0;
-    if (hasRandomized) {
+    // Scroll active option into center of options grid (horizontal on mobile)
+    if (hasRandomized && window.innerWidth <= 820) {
+      setTimeout(() => {
+        const activeOpt = sub.querySelector('.option-box.active');
+        if (activeOpt) {
+          const grid = activeOpt.closest('.options-grid');
+          if (grid) {
+            const optLeft = activeOpt.offsetLeft;
+            const optWidth = activeOpt.offsetWidth;
+            const gridWidth = grid.clientWidth;
+            grid.scrollLeft = optLeft - (gridWidth / 2) + (optWidth / 2);
+          }
+        }
+      }, 100);
+    } else if (hasRandomized) {
       setTimeout(() => {
         const activeOpt = sub.querySelector('.option-box.active');
         if (activeOpt) {
@@ -1471,7 +1502,6 @@ html, body {
           state.bgGradient = parseInt(btn.dataset.bgGrad);
           renderOptions(cat);
           updateCardBackground();
-          closeMobileSidebar();
           return;
         }
         const idx = parseInt(btn.dataset.idx);
@@ -1480,9 +1510,32 @@ html, body {
         } else {
           state[stateKey] = idx;
         }
+        // Save scroll position before re-render
+        const prevGrid = container.querySelector('.options-grid');
+        const savedScroll = prevGrid ? prevGrid.scrollLeft : 0;
         renderOptions(cat);
         renderAvatar();
-        closeMobileSidebar();
+        // Restore scroll, then scroll to center if clipped (mobile horizontal)
+        if (window.innerWidth <= 820) {
+          const newGrid = container.querySelector('.options-grid');
+          if (newGrid) {
+            newGrid.scrollLeft = savedScroll;
+            setTimeout(() => {
+              const active = container.querySelector('.option-box.active');
+              if (active) {
+                const grid = active.closest('.options-grid');
+                if (grid) {
+                  const gridRect = grid.getBoundingClientRect();
+                  const activeRect = active.getBoundingClientRect();
+                  const isClipped = activeRect.left < gridRect.left || activeRect.right > gridRect.right;
+                  if (isClipped) {
+                    grid.scrollTo({ left: active.offsetLeft - (grid.clientWidth / 2) + (active.offsetWidth / 2), behavior: 'smooth' });
+                  }
+                }
+              }
+            }, 50);
+          }
+        }
       });
     });
 
@@ -1810,13 +1863,23 @@ html, body {
     if (cat) renderOptions(cat);
     renderAvatar();
     updateUndoRedo();
-    // Scroll selected option into center of subsidebar
+    // Scroll selected option into center
     setTimeout(() => {
       const active = document.querySelector('.option-box.active');
       if (active) {
-        const scrollY = window.scrollY;
-        active.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        window.scrollTo(0, scrollY);
+        if (window.innerWidth <= 820) {
+          const grid = active.closest('.options-grid');
+          if (grid) {
+            const optLeft = active.offsetLeft;
+            const optWidth = active.offsetWidth;
+            const gridWidth = grid.clientWidth;
+            grid.scrollTo({ left: optLeft - (gridWidth / 2) + (optWidth / 2), behavior: 'smooth' });
+          }
+        } else {
+          const scrollY = window.scrollY;
+          active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          window.scrollTo(0, scrollY);
+        }
       }
     }, 100);
   }

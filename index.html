@@ -1338,29 +1338,23 @@ html, body {
     sub.classList.add('open');
     renderHeaderPalette(cat);
     renderOptions(cat);
-    // Scroll active option into center of options grid (horizontal on mobile)
-    if (hasRandomized && window.innerWidth <= 820) {
-      setTimeout(() => {
+    // Scroll active option into center of options grid
+    if (hasRandomized || hasEdited) {
+      requestAnimationFrame(() => {
         const activeOpt = sub.querySelector('.option-box.active');
         if (activeOpt) {
-          const grid = activeOpt.closest('.options-grid');
-          if (grid) {
-            const optLeft = activeOpt.offsetLeft;
-            const optWidth = activeOpt.offsetWidth;
-            const gridWidth = grid.clientWidth;
-            grid.scrollLeft = optLeft - (gridWidth / 2) + (optWidth / 2);
+          if (window.innerWidth <= 820) {
+            const grid = activeOpt.closest('.options-grid');
+            if (grid) {
+              grid.scrollLeft = activeOpt.offsetLeft - (grid.clientWidth / 2) + (activeOpt.offsetWidth / 2);
+            }
+          } else {
+            const scrollY = window.scrollY;
+            activeOpt.scrollIntoView({ block: 'center' });
+            window.scrollTo(0, scrollY);
           }
         }
-      }, 100);
-    } else if (hasRandomized) {
-      setTimeout(() => {
-        const activeOpt = sub.querySelector('.option-box.active');
-        if (activeOpt) {
-          const scrollY = window.scrollY;
-          activeOpt.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          window.scrollTo(0, scrollY);
-        }
-      }, 100);
+      });
     }
   }
 

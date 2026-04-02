@@ -414,6 +414,25 @@ html, body {
   display: block;
   image-rendering: pixelated;
 }
+.save-modal-text {
+  width: 100%;
+}
+.save-modal-text textarea {
+  width: 100%;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+}
+.save-modal-text textarea::placeholder {
+  color: rgba(255,255,255,0.25);
+}
 .save-modal-options {
   width: 100%;
   display: flex;
@@ -831,8 +850,11 @@ html, body {
     <div class="save-modal-preview">
       <canvas id="savePreviewCanvas" width="280" height="280"></canvas>
     </div>
+    <div class="save-modal-text">
+      <textarea id="saveTextInput" placeholder="텍스트를 입력하세요 (최대 2줄)" maxlength="60" rows="2"></textarea>
+    </div>
     <div class="save-modal-options">
-      <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="grainCheckbox"><span class="toggle-switch"></span><span class="texture-label">Texture</span></label>
+      <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="grainCheckbox"><span class="toggle-switch"></span><span class="texture-label">Tile</span></label>
     </div>
     <button class="save-modal-download" id="saveModalDownload">Download</button>
   </div>
@@ -2044,6 +2066,7 @@ html, body {
 
   function closeSaveModal() {
     document.getElementById('saveModal').classList.add('hidden');
+    document.getElementById('saveTextInput').value = '';
   }
 
   function updateSavePreview() {
@@ -2143,31 +2166,100 @@ html, body {
     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
       if (state.bgTexture) {
-        // Draw avatar on transparent temp canvas, apply grain, then composite
-        const tmp = document.createElement('canvas');
-        tmp.width = size; tmp.height = size;
-        const tctx = tmp.getContext('2d');
-        tctx.imageSmoothingEnabled = false;
-        const s = size * 0.93;
-        const x = (size - s) / 2;
-        const y = (size - s) / 2;
-        tctx.drawImage(img, x, y, s, s);
-        applyGrain(tctx, size, size);
-        ctx.drawImage(tmp, 0, 0);
+        // Tile mode: match download proportions (avatar = 520/720 of canvas)
+        const ts = size * (520 / 720);
+        const tcx = (size - ts) / 2;
+        const tcy = (size - ts) / 2;
+        const contentW = maxX - minX;
+        const tileRatio = contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65;
+        const tileGap = ts * tileRatio;
+        ctx.drawImage(img, tcx - tileGap, tcy, ts, ts);
+        ctx.drawImage(img, tcx, tcy, ts, ts);
+        ctx.drawImage(img, tcx + tileGap, tcy, ts, ts);
       } else {
-        ctx.imageSmoothingEnabled = false;
         const s = size * 0.93;
-        const x = (size - s) / 2;
-        const y = (size - s) / 2;
-        ctx.drawImage(img, x, y, s, s);
+        const cx = (size - s) / 2;
+        const cy = (size - s) / 2;
+        ctx.drawImage(img, cx, cy, s, s);
       }
       URL.revokeObjectURL(url);
+
+      // Draw text overlay on preview
+      const userText = (document.getElementById('saveTextInput').value || '').trim();
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}`;
+      const scale = size / 720;
+
+      // Determine text color based on background
+      function getTextColorPreview() {
+        let bgHex;
+        if (state.bgType === 'preset') {
+          bgHex = BG_PRESETS[state.bgGradient] || '#f5f5f5';
+        } else {
+          const bgColors = getColorPalette('background');
+          bgHex = bgColors[state.bgColor] || '#f5f5f5';
+        }
+        const tmp2 = document.createElement('canvas'); tmp2.width = 1; tmp2.height = 1;
+        const t2 = tmp2.getContext('2d');
+        t2.fillStyle = bgHex; t2.fillRect(0,0,1,1);
+        const [r,g,b] = t2.getImageData(0,0,1,1).data;
+        const max = Math.max(r,g,b), min = Math.min(r,g,b);
+        const sat = max === 0 ? 0 : (max - min) / max;
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        if (sat < 0.15 && brightness > 180) return { main: '#000', sub: 'rgba(0,0,0,0.4)' };
+        return { main: '#fff', sub: 'rgba(255,255,255,0.5)' };
+      }
+      const tc = getTextColorPreview();
+      const margin = Math.round(36 * scale);
+
+      ctx.textBaseline = 'top';
+      if (userText) {
+        ctx.font = `bold ${Math.round(36 * scale)}px "Pixelify Sans", monospace`;
+        ctx.fillStyle = tc.main;
+        ctx.textAlign = 'center';
+        const maxW = size - margin * 2;
+        const lineH = Math.round(46 * scale);
+        const startY = Math.round(44 * scale);
+        const inputLines = userText.split('\n').slice(0, 2);
+        const wrapLines = [];
+        for (const line of inputLines) {
+          if (wrapLines.length >= 2) break;
+          if (ctx.measureText(line).width <= maxW) {
+            wrapLines.push(line);
+          } else {
+            let cur = '';
+            for (const ch of line) {
+              if (ctx.measureText(cur + ch).width > maxW) {
+                if (wrapLines.length >= 2) break;
+                wrapLines.push(cur);
+                cur = ch;
+              } else { cur += ch; }
+            }
+            if (cur && wrapLines.length < 2) wrapLines.push(cur);
+          }
+        }
+        // Always anchor from 2nd line position, stack upward
+        const baseY = startY + lineH;
+        const topOffset = (wrapLines.length - 1) * lineH;
+        for (let li = 0; li < wrapLines.length; li++) {
+          ctx.fillText(wrapLines[li], size / 2, baseY - topOffset + li * lineH);
+        }
+      }
+      ctx.font = `${Math.round(24 * scale)}px "Pixelify Sans", monospace`;
+      ctx.fillStyle = tc.sub;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(dateStr, margin, size - Math.round(30 * scale));
+      ctx.textAlign = 'right';
+      ctx.fillText('PIXIE LAB', size - margin, size - Math.round(30 * scale));
     };
     img.src = url;
   }
 
-  function downloadAvatar() {
+  async function downloadAvatar() {
+    await document.fonts.ready;
     const svgEl = document.getElementById('avatarSvg');
     const clone = svgEl.cloneNode(true);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -2216,10 +2308,13 @@ html, body {
     clone.setAttribute('height', `${dim}`);
 
     const svgData = new XMLSerializer().serializeToString(clone);
+    const DPR = 2;
+    const OUT = 720;
     const canvas = document.createElement('canvas');
-    canvas.width = 560;
-    canvas.height = 560;
+    canvas.width = OUT * DPR;
+    canvas.height = OUT * DPR;
     const ctx = canvas.getContext('2d');
+    ctx.scale(DPR, DPR);
 
     // Draw background
     if (state.bgType === 'preset') {
@@ -2228,32 +2323,111 @@ html, body {
       const bgColors = getColorPalette('background');
       ctx.fillStyle = bgColors[state.bgColor] || '#f5f5f5';
     }
-    ctx.fillRect(0, 0, 560, 560);
+    ctx.fillRect(0, 0, OUT, OUT);
 
     const img = new Image();
     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
 
     img.onload = () => {
-      const size = 520;
-      const x = (560 - size) / 2;
-      const y = (560 - size) / 2;
+      const avatarSize = 520;
+      const ax = (OUT - avatarSize) / 2;
+      const ay = (OUT - avatarSize) / 2;
 
+      ctx.imageSmoothingEnabled = false;
       if (state.bgTexture) {
-        const tmp = document.createElement('canvas');
-        tmp.width = 560; tmp.height = 560;
-        const tctx = tmp.getContext('2d');
-        tctx.imageSmoothingEnabled = false;
-        tctx.drawImage(img, x, y, size, size);
-        applyGrain(tctx, 560, 560);
-        ctx.drawImage(tmp, 0, 0);
+        const contentW = maxX - minX;
+        const tileGap = avatarSize * (contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65);
+        ctx.drawImage(img, ax - tileGap, ay, avatarSize, avatarSize);
+        ctx.drawImage(img, ax, ay, avatarSize, avatarSize);
+        ctx.drawImage(img, ax + tileGap, ay, avatarSize, avatarSize);
       } else {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, x, y, size, size);
+        ctx.drawImage(img, ax, ay, avatarSize, avatarSize);
       }
       URL.revokeObjectURL(url);
 
-      canvas.toBlob(async (blob) => {
+      // Draw text overlay
+      const userText = (document.getElementById('saveTextInput').value || '').trim();
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}`;
+
+      // Determine text color based on background
+      function getTextColor() {
+        let bgHex;
+        if (state.bgType === 'preset') {
+          bgHex = BG_PRESETS[state.bgGradient] || '#f5f5f5';
+        } else {
+          const bgColors = getColorPalette('background');
+          bgHex = bgColors[state.bgColor] || '#f5f5f5';
+        }
+        // Parse to RGB
+        const tmp2 = document.createElement('canvas'); tmp2.width = 1; tmp2.height = 1;
+        const t2 = tmp2.getContext('2d');
+        t2.fillStyle = bgHex; t2.fillRect(0,0,1,1);
+        const [r,g,b] = t2.getImageData(0,0,1,1).data;
+        // Check if achromatic (low saturation)
+        const max = Math.max(r,g,b), min = Math.min(r,g,b);
+        const sat = max === 0 ? 0 : (max - min) / max;
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // Achromatic + bright → black text
+        if (sat < 0.15 && brightness > 180) return { main: '#000', sub: 'rgba(0,0,0,0.4)' };
+        return { main: '#fff', sub: 'rgba(255,255,255,0.5)' };
+      }
+      const tc = getTextColor();
+      const margin = 36;
+
+      ctx.textBaseline = 'top';
+      // Top: user text (max 2 lines, auto-wrap, centered)
+      if (userText) {
+        ctx.font = 'bold 36px "Pixelify Sans", monospace';
+        ctx.fillStyle = tc.main;
+        ctx.textAlign = 'center';
+        const maxW = OUT - margin * 2;
+        const lineH = 46;
+        const startY = 64;
+        const inputLines = userText.split('\n').slice(0, 2);
+        const wrapLines = [];
+        for (const line of inputLines) {
+          if (wrapLines.length >= 2) break;
+          if (ctx.measureText(line).width <= maxW) {
+            wrapLines.push(line);
+          } else {
+            let cur = '';
+            for (const ch of line) {
+              if (ctx.measureText(cur + ch).width > maxW) {
+                if (wrapLines.length >= 2) break;
+                wrapLines.push(cur);
+                cur = ch;
+              } else { cur += ch; }
+            }
+            if (cur && wrapLines.length < 2) wrapLines.push(cur);
+          }
+        }
+        // Always anchor from 2nd line position, stack upward
+        const baseY = startY + lineH;
+        const topOffset = (wrapLines.length - 1) * lineH;
+        for (let li = 0; li < wrapLines.length; li++) {
+          ctx.fillText(wrapLines[li], OUT / 2, baseY - topOffset + li * lineH);
+        }
+      }
+      // Bottom left: date
+      ctx.font = '24px "Pixelify Sans", monospace';
+      ctx.fillStyle = tc.sub;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(dateStr, margin, OUT - 30);
+      // Bottom right: PIXIE LAB
+      ctx.textAlign = 'right';
+      ctx.fillText('PIXIE LAB', OUT - margin, OUT - 30);
+
+      // Downscale 2x canvas to 720x720 output
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = OUT;
+      outCanvas.height = OUT;
+      const octx = outCanvas.getContext('2d');
+      octx.drawImage(canvas, 0, 0, OUT, OUT);
+
+      outCanvas.toBlob(async (blob) => {
         if (isMobile && navigator.share && navigator.canShare) {
           const file = new File([blob], 'me.png', { type: 'image/png' });
           try {
@@ -2331,6 +2505,7 @@ html, body {
     document.getElementById('saveModalClose').addEventListener('click', closeSaveModal);
     document.getElementById('saveModal').addEventListener('click', (e) => { if (e.target.id === 'saveModal') closeSaveModal(); });
     document.getElementById('grainCheckbox').addEventListener('change', updateSavePreview);
+    document.getElementById('saveTextInput').addEventListener('input', updateSavePreview);
     document.getElementById('saveModalDownload').addEventListener('click', downloadAvatar);
 
     // Undo/Redo

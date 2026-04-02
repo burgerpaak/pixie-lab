@@ -2173,7 +2173,7 @@ html, body {
         const tcx = (size - ts) / 2;
         const tcy = (size - ts) / 2;
         const contentW = maxX - minX;
-        const tileRatio = contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65;
+        const tileRatio = state.accessory.includes(35) ? 0.88 : state.accessory.some(a => [33,34,36,37].includes(a)) ? 0.8 : contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65;
         const tileGap = ts * tileRatio;
         ctx.drawImage(img, tcx - tileGap, tcy, ts, ts);
         ctx.drawImage(img, tcx, tcy, ts, ts);
@@ -2337,7 +2337,7 @@ html, body {
       ctx.imageSmoothingEnabled = false;
       if (state.bgTexture) {
         const contentW = maxX - minX;
-        const tileGap = avatarSize * (contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65);
+        const tileGap = avatarSize * (state.accessory.includes(35) ? 0.88 : state.accessory.some(a => [33,34,36,37].includes(a)) ? 0.8 : contentW > 200 ? 0.88 : contentW > 180 ? 0.8 : 0.65);
         ctx.drawImage(img, ax - tileGap, ay, avatarSize, avatarSize);
         ctx.drawImage(img, ax, ay, avatarSize, avatarSize);
         ctx.drawImage(img, ax + tileGap, ay, avatarSize, avatarSize);

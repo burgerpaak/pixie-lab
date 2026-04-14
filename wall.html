@@ -86,7 +86,16 @@ body {
   width: 130%;
   margin-left: -15%;
 }
-.wall-loading { text-align: center; padding: 80px; opacity: 0.5; font-size: 16px; }
+.wall-loading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.wall-loading img {
+  width: 48px; height: 48px;
+  image-rendering: pixelated;
+}
 .wall-empty { text-align: center; padding: 80px; opacity: 0.4; }
 .wall-item {
   cursor: grab;
@@ -106,7 +115,7 @@ body {
   <a href="#" onclick="history.back();return false;">&larr; Back to Lab</a>
 </div>
 <div class="wall-grid" id="wallGrid">
-  <div class="wall-loading">Loading...</div>
+  <div class="wall-loading"><img src="assets/pixie-loading.gif" alt="Loading"></div>
 </div>
 <script>
 const WALL_API = "https://script.google.com/macros/s/AKfycbx0tLhSuK86ZaSFtkMI-LE7lYmB3cUhTVPNNGfnaRMNOF3RoIlG29lanq1Q6NDXnQTTzQ/exec";

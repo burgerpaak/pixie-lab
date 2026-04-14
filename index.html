@@ -2627,11 +2627,9 @@ html, body {
   init();
 
   // Pre-fetch wall data in background for instant Lounge loading
-  setTimeout(() => {
-    fetch(WALL_API).then(r => r.json()).then(data => {
-      localStorage.setItem('wallCache', JSON.stringify(data));
-    }).catch(() => {});
-  }, 2000);
+  fetch(WALL_API).then(r => r.json()).then(data => {
+    localStorage.setItem('wallCache', JSON.stringify(data));
+  }).catch(() => {});
 })();
 </script>
 <button class="btn-wall-float" id="wallBtnFloat">

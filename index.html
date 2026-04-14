@@ -892,7 +892,7 @@ html, body {
     </div>
     <div class="save-modal-options">
       <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="grainCheckbox"><span class="toggle-switch"></span><span class="texture-label">Tile</span></label>
-      <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="wallShareCheckbox" checked><span class="toggle-switch"></span><span class="texture-label">Wall</span></label>
+      <label class="texture-toggle"><input type="checkbox" class="texture-checkbox" id="wallShareCheckbox" checked><span class="toggle-switch"></span><span class="texture-label">Post</span></label>
     </div>
     <button class="save-modal-download" id="saveModalDownload">Download</button>
   </div>
@@ -2625,6 +2625,13 @@ html, body {
   }
 
   init();
+
+  // Pre-fetch wall data in background for instant Lounge loading
+  setTimeout(() => {
+    fetch(WALL_API).then(r => r.json()).then(data => {
+      localStorage.setItem('wallCache', JSON.stringify(data));
+    }).catch(() => {});
+  }, 2000);
 })();
 </script>
 <button class="btn-wall-float" id="wallBtnFloat">
